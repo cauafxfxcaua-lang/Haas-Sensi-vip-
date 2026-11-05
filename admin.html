@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#07040f"><title>Painel VIP - HAAS SENSI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0%,#2a0f55,#07040f 65%) fixed;color:#f3eeff;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:20px 16px 60px}
+main{max-width:620px;margin:0 auto}
+h1{font:700 46px/1 Impact,"Arial Narrow",sans-serif;margin:0}
+h2{font:700 24px/1.1 Impact,"Arial Narrow",sans-serif;margin:0 0 10px}
+.sub{color:#bcaee0;margin:2px 0 8px}
+.card{background:rgba(14,7,28,.85);border:1.5px solid rgba(160,100,255,.4);border-radius:14px;padding:16px;margin-top:14px}
+label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}
+input,textarea{width:100%;min-height:46px;border-radius:10px;border:1.5px solid rgba(160,100,255,.5);background:rgba(0,0,0,.4);color:#f3eeff;padding:10px 12px;font:inherit}
+textarea{min-height:110px;resize:vertical}
+button{min-height:44px;padding:0 14px;border-radius:10px;border:1.5px solid #b47bff;background:rgba(138,63,252,.35);color:#fff;font:600 15px system-ui;cursor:pointer;margin:8px 8px 0 0}
+button.main{background:linear-gradient(90deg,#8a3ffc,#b47bff);font-size:16px}
+button.sm{min-height:38px;padding:0 10px;font-size:14px;margin-top:6px}
+button.on{background:linear-gradient(90deg,#8a3ffc,#b47bff)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stats div{border:1.5px solid rgba(160,100,255,.4);border-radius:10px;padding:8px 4px;text-align:center;background:rgba(0,0,0,.25)}
+.stats b{display:block;font:700 28px/1 Impact,"Arial Narrow",sans-serif;color:#b47bff}
+.stats span{font-size:12px;color:#bcaee0}
+.g2{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.row{border-top:1px solid rgba(160,100,255,.3);padding:10px 0}
+.row b{font:700 17px ui-monospace,Menlo,monospace;letter-spacing:.5px}
+.row small{display:block;color:#bcaee0}
+.badge{display:inline-block;font:600 12px system-ui;border-radius:20px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+.b-free{background:#1f6b44}.b-use{background:#6b3fb8}.b-blk{background:#7a1e1e}
+#m{min-height:1.5em;margin-top:10px;font-weight:600}#m.ok{color:#8dffbf}#m.err{color:#ff9a9a}
+#demoBanner{background:#7a4a10;border-radius:10px;padding:8px 12px;margin-top:10px;font-size:14px}
+.new{border:1.5px dashed #b47bff;border-radius:10px;padding:10px;margin-top:8px}
+@media(max-width:420px){.stats{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>Painel VIP</h1><p class="sub">HAAS SENSI · gerar e gerenciar códigos de acesso</p>
+<div id="demoBanner" hidden>MODO DEMONSTRAÇÃO: os códigos são de mentira e somem ao fechar a página.</div>
+<div id="m" role="status"></div>
+
+<section class="card" id="connbox">
+<h2>Conectar</h2>
+<label for="api">Endereço do servidor</label><input id="api" placeholder="https://haas-sensi-api.SEUUSUARIO.workers.dev" autocomplete="off">
+<label for="key">Chave de admin</label><input id="key" type="password" autocomplete="off">
+<button class="main" id="conn">Conectar</button>
+</section>
+
+<div id="panel" hidden>
+<section class="card"><h2>Resumo</h2><div class="stats"><div><b id="s-t">0</b><span>Total</span></div><div><b id="s-f">0</b><span>Livres</span></div><div><b id="s-u">0</b><span>Em uso</span></div><div><b id="s-b">0</b><span>Bloqueados</span></div></div></section>
+
+<section class="card"><h2>Gerar códigos</h2>
+<div class="g2"><div><label for="n">Quantidade</label><input id="n" type="number" min="1" max="50" value="1" inputmode="numeric"></div><div><label for="lb">Nome do comprador (opcional)</label><input id="lb" maxlength="40" autocomplete="off"></div></div>
+<button class="main" id="new">Gerar códigos</button>
+<div id="nc"></div></section>
+
+<section class="card"><h2>Mensagem para o comprador</h2>
+<p class="sub">Use {codigo} e {link}. O painel troca pelos valores certos.</p>
+<textarea id="tpl" aria-label="Modelo da mensagem"></textarea></section>
+
+<section class="card"><h2>Códigos</h2>
+<input id="q" placeholder="Buscar por código ou nome" aria-label="Buscar" autocomplete="off">
+<div id="flt"><button class="sm on" data-f="all">Todos</button><button class="sm" data-f="free">Livres</button><button class="sm" data-f="use">Em uso</button><button class="sm" data-f="blk">Bloqueados</button></div>
+<div id="list"></div></section>
+</div>
+
+<script>
+var DEFAULT_API=""; /* cole aqui o endereço do seu servidor (termina em workers.dev) */
+var $=function(i){return document.getElementById(i)};
+var MAX=2,DB=[],flt="all",demo=false,seq=0;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+$("api").value=ls("haas-admin-api")||DEFAULT_API;
+$("tpl").value=ls("haas-admin-tpl")||"Olá! Seu acesso ao HAAS SENSI:\n\nCódigo: {codigo}\nLink: {link}\n\nO código vale para 1 pessoa. Não compartilhe.";
+$("tpl").addEventListener("input",function(){ls("haas-admin-tpl",$("tpl").value)});
+function link(){return location.href.replace(/admin\.html.*$/,"")}
+function msgFor(code){return $("tpl").value.replace(/\{codigo\}/g,code).replace(/\{link\}/g,link())}
+function toast(t,err){var m=$("m");m.textContent=t;m.className=err?"err":"ok"}
+function copy(t){
+  try{navigator.clipboard.writeText(t).then(function(){toast("Copiado!")},function(){toast("Não foi possível copiar.",1)})}catch(e){toast("Não foi possível copiar.",1)}
+}
+function wa(t){window.open("https://wa.me/?text="+encodeURIComponent(t),"_blank","noopener")}
+
+/* ---------- modo demonstração ---------- */
+function rnd(n){var A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<n;i++)s+=A[Math.floor(Math.random()*A.length)];return s}
+function fake(path,b){
+  return new Promise(function(res){
+    var d={ok:true};
+    if(path==="/admin/list"){d.list=DB.map(function(x){return{code:x.code,label:x.label,devices:x.devices,revoked:x.revoked,created:x.created}});d.max=MAX}
+    else if(path==="/admin/new"){d.codes=[];for(var i=0;i<(b.n||1);i++){var c="HAAS-DEMO"+rnd(1)+"-"+rnd(5);d.codes.push(c);DB.push({code:c,label:b.label||"",devices:0,revoked:false,created:Date.now()+(seq++)})}}
+    else{var it=DB.filter(function(x){return x.code===b.code})[0];if(!it){d={ok:false,error:"notfound"}}else if(path==="/admin/reset")it.devices=0;else if(path==="/admin/revoke")it.revoked=b.revoked!==false}
+    setTimeout(function(){res(d)},120);
+  });
+}
+function seed(){
+  var t=Date.now();
+  DB=[{code:"HAAS-DEMO7-K3M9Q",label:"Exemplo João",devices:1,revoked:false,created:t-86400000*3},{code:"HAAS-DEMO2-X8P4N",label:"Exemplo Maria",devices:2,revoked:false,created:t-86400000*2},{code:"HAAS-DEMO5-R6T2W",label:"",devices:0,revoked:false,created:t-86400000},{code:"HAAS-DEMO9-B4V7C",label:"Exemplo bloqueado",devices:1,revoked:true,created:t-3600000}];
+}
+
+/* ---------- chamadas ---------- */
+async function call(path,body){
+  if(demo)return fake(path,body||{});
+  var api=$("api").value.trim().replace(/\/$/,"");
+  try{
+    var r=await fetch(api+path,{method:"POST",headers:{"content-type":"application/json","x-admin-key":$("key").value},body:JSON.stringify(body||{})});
+    var d=await r.json();
+    if(!d.ok){toast(d.error==="auth"?"Chave de admin errada.":"Erro: "+d.error,1);return null}
+    return d;
+  }catch(e){toast("Não foi possível falar com o servidor. Confira o endereço.",1);return null}
+}
+async function reload(){
+  var d=await call("/admin/list");if(!d)return false;
+  MAX=d.max||2;DB=d.list;render();return true;
+}
+$("conn").onclick=async function(){
+  var api=$("api").value.trim(),key=$("key").value.trim();
+  demo=(api===""&&key.toLowerCase()==="demo");
+  if(!demo&&(!api||!key)){toast("Preencha o endereço do servidor e a chave de admin.",1);return}
+  if(demo)seed();else ls("haas-admin-api",api);
+  $("demoBanner").hidden=!demo;
+  if(await reload()){$("panel").hidden=false;$("connbox").hidden=true;toast(demo?"Demonstração aberta.":"Conectado.")}
+};
+$("key").addEventListener("keydown",function(e){if(e.key==="Enter")$("conn").click()});
+
+/* ---------- gerar ---------- */
+function showNew(codes){
+  var box=$("nc");box.innerHTML="";
+  codes.forEach(function(c){
+    var w=document.createElement("div");w.className="new";
+    var b=document.createElement("b");b.style.font="700 18px ui-monospace,Menlo,monospace";b.textContent=c;
+    var x=document.createElement("button");x.className="sm";x.textContent="Copiar código";x.onclick=function(){copy(c)};
+    var y=document.createElement("button");y.className="sm";y.textContent="Copiar mensagem";y.onclick=function(){copy(msgFor(c))};
+    var z=document.createElement("button");z.className="sm";z.textContent="WhatsApp";z.onclick=function(){wa(msgFor(c))};
+    w.appendChild(b);w.appendChild(document.createElement("br"));w.appendChild(x);w.appendChild(y);w.appendChild(z);box.appendChild(w);
+  });
+}
+$("new").onclick=async function(){
+  var n=parseInt($("n").value,10);
+  if(isNaN(n)||n<1||n>50){toast("Escolha de 1 a 50 códigos.",1);return}
+  var d=await call("/admin/new",{n:n,label:$("lb").value.trim()});
+  if(!d)return;
+  showNew(d.codes);toast(d.codes.length+" código(s) gerado(s). Envie ao comprador.");
+  await reload();
+};
+
+/* ---------- lista ---------- */
+function st(x){return x.revoked?"blk":(x.devices>0?"use":"free")}
+function render(){
+  var c={t:DB.length,f:0,u:0,b:0};
+  DB.forEach(function(x){var s=st(x);if(s==="free")c.f++;else if(s==="use")c.u++;else c.b++});
+  $("s-t").textContent=c.t;$("s-f").textContent=c.f;$("s-u").textContent=c.u;$("s-b").textContent=c.b;
+  var q=$("q").value.trim().toLowerCase(),box=$("list");box.innerHTML="";
+  var L=DB.slice().sort(function(a,b){return b.created-a.created}).filter(function(x){
+    return (flt==="all"||st(x)===flt)&&(!q||x.code.toLowerCase().indexOf(q)>=0||(x.label||"").toLowerCase().indexOf(q)>=0);
+  });
+  if(!L.length){var e=document.createElement("small");e.style.color="#bcaee0";e.textContent="Nenhum código aqui.";box.appendChild(e);return}
+  L.forEach(function(x){
+    var r=document.createElement("div");r.className="row";
+    var b=document.createElement("b");b.textContent=x.code;
+    var bd=document.createElement("span");var s=st(x);bd.className="badge b-"+s;bd.textContent=s==="free"?"Livre":(s==="use"?"Em uso":"Bloqueado");
+    var sm=document.createElement("small"),d=new Date(x.created);
+    sm.textContent=(x.label?x.label+" · ":"")+x.devices+" de "+MAX+" aparelhos · criado em "+("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2);
+    r.appendChild(b);r.appendChild(bd);r.appendChild(sm);
+    function btn(t,f){var k=document.createElement("button");k.className="sm";k.textContent=t;k.onclick=f;r.appendChild(k)}
+    btn("Copiar mensagem",function(){copy(msgFor(x.code))});
+    btn("WhatsApp",function(){wa(msgFor(x.code))});
+    btn("Liberar aparelhos",async function(){if(await call("/admin/reset",{code:x.code})){toast("Liberado: "+x.code);reload()}});
+    btn(x.revoked?"Desbloquear":"Bloquear",async function(){if(await call("/admin/revoke",{code:x.code,revoked:!x.revoked})){toast("Atualizado.");reload()}});
+    box.appendChild(r);
+  });
+}
+$("q").addEventListener("input",render);
+$("flt").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  flt=b.dataset.f;
+  document.querySelectorAll("#flt button").forEach(function(x){x.classList.toggle("on",x===b)});
+  render();
+});
+</script></main></body></html>
