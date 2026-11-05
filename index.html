@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#07040f"><title>HAAS SENSI</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="HAAS SENSI">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 0%,#2a0f55,#07040f 70%);color:#f3eeff;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px;text-align:center}
+main{width:min(360px,100%)}
+h1{font:700 54px/1 Impact,"Arial Narrow",sans-serif;margin:0 0 4px}
+p{color:#bcaee0;margin:0 0 16px}
+input{width:100%;min-height:52px;border-radius:10px;border:1.5px solid rgba(160,100,255,.5);background:rgba(0,0,0,.4);color:#f3eeff;padding:0 14px;font:600 18px system-ui;text-align:center;letter-spacing:1px;text-transform:uppercase}
+button{width:100%;min-height:52px;margin-top:10px;border-radius:10px;border:1.5px solid #b47bff;background:linear-gradient(90deg,#8a3ffc,#b47bff);color:#fff;font:700 18px system-ui;cursor:pointer}
+#m{min-height:3em;margin-top:12px;font-size:14px;color:#ff9a9a}
+#m.ok{color:#8dffbf}
+small{display:block;color:#bcaee0;margin-top:14px;font-size:13px}
+</style></head><body><main>
+<h1>HAAS SENSI</h1><p>Digite o seu código de acesso</p>
+<input id="c" autocomplete="off" autocapitalize="characters" placeholder="HAAS-XXXXX-XXXXX" aria-label="Código de acesso">
+<button id="go">Entrar</button><div id="m" role="status"></div>
+<small>O código vale para uma pessoa. Se você já usou em outro aparelho e não consegue entrar, fale com o suporte.</small>
+</main>
+<script>
+var API="";  /* cole aqui o endereço do seu servidor (termina em workers.dev), sem barra no final */
+function $(i){return document.getElementById(i)}
+function msg(t,ok){var m=$("m");m.textContent=t;m.className=ok?"ok":""}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+function okStorage(){try{localStorage.setItem("haas-t","1");localStorage.removeItem("haas-t");return true}catch(e){return false}}
+function dev(){
+  var d=ls("haas-dev");
+  if(!d){d=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(16)+Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2));ls("haas-dev",d)}
+  return d;
+}
+async function openApp(keyB64){
+  var raw=Uint8Array.from(atob(keyB64),function(c){return c.charCodeAt(0)});
+  var key=await crypto.subtle.importKey("raw",raw,"AES-GCM",false,["decrypt"]);
+  var buf=await (await fetch("app.enc",{cache:"no-store"})).arrayBuffer();
+  var plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:new Uint8Array(buf.slice(0,12))},key,buf.slice(12));
+  var html=new TextDecoder().decode(plain);
+  document.open();document.write(html);document.close();
+}
+async function activate(code){
+  if(!API){msg("O app ainda não foi configurado. Fale com o suporte.");return}
+  if(!window.crypto||!crypto.subtle){msg("Este navegador não é compatível. Use o Safari ou o Chrome atualizado.");return}
+  if(!okStorage()){msg("Ative o armazenamento do navegador e tente de novo.");return}
+  msg("Verificando...",true);
+  var r;
+  try{
+    var res=await fetch(API+"/activate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code:code,dev:dev()})});
+    r=await res.json();
+  }catch(e){
+    var k=ls("haas-key");
+    if(k&&ls("haas-code")){try{await openApp(k);return}catch(e2){}}
+    msg("Sem conexão com o servidor. Conecte à internet e tente de novo.");return;
+  }
+  if(r&&r.ok){
+    ls("haas-code",code);ls("haas-key",r.key);
+    try{await openApp(r.key)}catch(e){msg("Não foi possível abrir o app. Tente atualizar a página.")}
+    return;
+  }
+  ls("haas-key",null);ls("haas-code",null);
+  var T={invalid:"Código inválido. Confira e tente de novo.",used:"Este código já foi usado em outro aparelho. Fale com o suporte para liberar.",revoked:"Este código foi bloqueado. Fale com o suporte."};
+  msg(T[r&&r.error]||"Não foi possível entrar agora. Tente de novo mais tarde.");
+}
+$("go").onclick=function(){var c=$("c").value.trim();if(!c){msg("Digite o seu código.");return}activate(c)};
+$("c").addEventListener("keydown",function(e){if(e.key==="Enter")$("go").click()});
+var saved=ls("haas-code");
+if(saved){$("c").value=saved;activate(saved)}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
+</script></body></html>
