@@ -18,7 +18,7 @@ small{display:block;color:#bcaee0;margin-top:14px;font-size:13px}
 <small>O código vale para uma pessoa. Se você já usou em outro aparelho e não consegue entrar, fale com o suporte.</small>
 </main>
 <script>
-var API="";  /* cole aqui o endereço do seu servidor (termina em workers.dev), sem barra no final */
+var API="https://haas-sensi-api.haaszinff.workers.dev";
 function $(i){return document.getElementById(i)}
 function msg(t,ok){var m=$("m");m.textContent=t;m.className=ok?"ok":""}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
