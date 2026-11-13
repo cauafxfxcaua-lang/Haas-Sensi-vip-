@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#07040f"><title>Painel VIP - HAAS SENSI</title>
-<link rel="apple-touch-icon" href="icon-192.png"><style>
+<style>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0%,#2a0f55,#07040f 65%) fixed;color:#f3eeff;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:20px 16px 60px}
 main{max-width:620px;margin:0 auto}
@@ -8,7 +8,7 @@ h2{font:700 24px/1.1 Impact,"Arial Narrow",sans-serif;margin:0 0 10px}
 .sub{color:#bcaee0;margin:2px 0 8px}
 .card{background:rgba(14,7,28,.85);border:1.5px solid rgba(160,100,255,.4);border-radius:14px;padding:16px;margin-top:14px}
 label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}
-input,textarea{width:100%;min-height:46px;border-radius:10px;border:1.5px solid rgba(160,100,255,.5);background:rgba(0,0,0,.4);color:#f3eeff;padding:10px 12px;font:inherit}
+input,textarea,select{width:100%;min-height:46px;border-radius:10px;border:1.5px solid rgba(160,100,255,.5);background:rgba(0,0,0,.4);color:#f3eeff;padding:10px 12px;font:inherit}
 textarea{min-height:110px;resize:vertical}
 button{min-height:44px;padding:0 14px;border-radius:10px;border:1.5px solid #b47bff;background:rgba(138,63,252,.35);color:#fff;font:600 15px system-ui;cursor:pointer;margin:8px 8px 0 0}
 button.main{background:linear-gradient(90deg,#8a3ffc,#b47bff);font-size:16px}
@@ -24,7 +24,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 .row b{font:700 17px ui-monospace,Menlo,monospace;letter-spacing:.5px}
 .row small{display:block;color:#bcaee0}
 .badge{display:inline-block;font:600 12px system-ui;border-radius:20px;padding:2px 8px;margin-left:6px;vertical-align:middle}
-.b-free{background:#1f6b44}.b-use{background:#6b3fb8}.b-blk{background:#7a1e1e}
+.b-exp{background:#8a5a00}.b-free{background:#1f6b44}.b-use{background:#6b3fb8}.b-blk{background:#7a1e1e}
 #m{min-height:1.5em;margin-top:10px;font-weight:600}#m.ok{color:#8dffbf}#m.err{color:#ff9a9a}
 #demoBanner{background:#7a4a10;border-radius:10px;padding:8px 12px;margin-top:10px;font-size:14px}
 .new{border:1.5px dashed #b47bff;border-radius:10px;padding:10px;margin-top:8px}
@@ -42,10 +42,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 </section>
 
 <div id="panel" hidden>
-<section class="card"><h2>Resumo</h2><div class="stats"><div><b id="s-t">0</b><span>Total</span></div><div><b id="s-f">0</b><span>Livres</span></div><div><b id="s-u">0</b><span>Em uso</span></div><div><b id="s-b">0</b><span>Bloqueados</span></div></div></section>
+<section class="card"><h2>Resumo</h2><div class="stats"><div><b id="s-t">0</b><span>Total</span></div><div><b id="s-f">0</b><span>Livres</span></div><div><b id="s-u">0</b><span>Em uso</span></div><div><b id="s-b">0</b><span>Bloq./Venc.</span></div></div></section>
 
 <section class="card"><h2>Gerar códigos</h2>
 <div class="g2"><div><label for="n">Quantidade</label><input id="n" type="number" min="1" max="50" value="1" inputmode="numeric"></div><div><label for="lb">Nome do comprador (opcional)</label><input id="lb" maxlength="40" autocomplete="off"></div></div>
+<label for="pl">Plano</label><select id="pl"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="0">Vitalício</option></select>
+<small class="sub">O prazo começa a contar quando o comprador digita o código pela primeira vez.</small>
 <button class="main" id="new">Gerar códigos</button>
 <div id="nc"></div></section>
 
@@ -80,8 +82,8 @@ function rnd(n){var A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<n;i+
 function fake(path,b){
   return new Promise(function(res){
     var d={ok:true};
-    if(path==="/admin/list"){d.list=DB.map(function(x){return{code:x.code,label:x.label,devices:x.devices,revoked:x.revoked,created:x.created}});d.max=MAX}
-    else if(path==="/admin/new"){d.codes=[];for(var i=0;i<(b.n||1);i++){var c="HAAS-DEMO"+rnd(1)+"-"+rnd(5);d.codes.push(c);DB.push({code:c,label:b.label||"",devices:0,revoked:false,created:Date.now()+(seq++)})}}
+    if(path==="/admin/list"){d.list=DB.map(function(x){return{code:x.code,label:x.label,devices:x.devices,revoked:x.revoked,created:x.created,days:x.days||0,exp:null}});d.max=MAX}
+    else if(path==="/admin/new"){d.codes=[];for(var i=0;i<(b.n||1);i++){var c="HAAS-DEMO"+rnd(1)+"-"+rnd(5);d.codes.push(c);DB.push({code:c,label:b.label||"",devices:0,revoked:false,days:b.days||0,created:Date.now()+(seq++)})}}
     else{var it=DB.filter(function(x){return x.code===b.code})[0];if(!it){d={ok:false,error:"notfound"}}else if(path==="/admin/reset")it.devices=0;else if(path==="/admin/revoke")it.revoked=b.revoked!==false}
     setTimeout(function(){res(d)},120);
   });
@@ -131,33 +133,36 @@ function showNew(codes){
 $("new").onclick=async function(){
   var n=parseInt($("n").value,10);
   if(isNaN(n)||n<1||n>50){toast("Escolha de 1 a 50 códigos.",1);return}
-  var d=await call("/admin/new",{n:n,label:$("lb").value.trim()});
+  var d=await call("/admin/new",{n:n,label:$("lb").value.trim(),days:parseInt($("pl").value,10)});
   if(!d)return;
   showNew(d.codes);toast(d.codes.length+" código(s) gerado(s). Envie ao comprador.");
   await reload();
 };
 
 /* ---------- lista ---------- */
-function st(x){return x.revoked?"blk":(x.devices>0?"use":"free")}
+function st(x){return x.revoked?"blk":(x.exp&&x.exp<Date.now()?"exp":(x.devices>0?"use":"free"))}
+function dm(t){var d=new Date(t);return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear()}
 function render(){
   var c={t:DB.length,f:0,u:0,b:0};
   DB.forEach(function(x){var s=st(x);if(s==="free")c.f++;else if(s==="use")c.u++;else c.b++});
   $("s-t").textContent=c.t;$("s-f").textContent=c.f;$("s-u").textContent=c.u;$("s-b").textContent=c.b;
   var q=$("q").value.trim().toLowerCase(),box=$("list");box.innerHTML="";
   var L=DB.slice().sort(function(a,b){return b.created-a.created}).filter(function(x){
-    return (flt==="all"||st(x)===flt)&&(!q||x.code.toLowerCase().indexOf(q)>=0||(x.label||"").toLowerCase().indexOf(q)>=0);
+    return (flt==="all"||st(x)===flt||(flt==="blk"&&st(x)==="exp"))&&(!q||x.code.toLowerCase().indexOf(q)>=0||(x.label||"").toLowerCase().indexOf(q)>=0);
   });
   if(!L.length){var e=document.createElement("small");e.style.color="#bcaee0";e.textContent="Nenhum código aqui.";box.appendChild(e);return}
   L.forEach(function(x){
     var r=document.createElement("div");r.className="row";
     var b=document.createElement("b");b.textContent=x.code;
-    var bd=document.createElement("span");var s=st(x);bd.className="badge b-"+s;bd.textContent=s==="free"?"Livre":(s==="use"?"Em uso":"Bloqueado");
+    var bd=document.createElement("span");var s=st(x);bd.className="badge b-"+s;bd.textContent=s==="free"?"Livre":(s==="use"?"Em uso":(s==="exp"?"Expirado":"Bloqueado"));
     var sm=document.createElement("small"),d=new Date(x.created);
-    sm.textContent=(x.label?x.label+" · ":"")+x.devices+" de "+MAX+" aparelhos · criado em "+("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2);
+    var pz=!x.days?"vitalício":(x.exp?"vence em "+dm(x.exp):x.days+" dias (conta no 1º uso)");
+    sm.textContent=(x.label?x.label+" · ":"")+x.devices+" de "+MAX+" aparelhos · "+pz+" · criado em "+("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2);
     r.appendChild(b);r.appendChild(bd);r.appendChild(sm);
     function btn(t,f){var k=document.createElement("button");k.className="sm";k.textContent=t;k.onclick=f;r.appendChild(k)}
     btn("Copiar mensagem",function(){copy(msgFor(x.code))});
     btn("WhatsApp",function(){wa(msgFor(x.code))});
+    btn("Renovar",async function(){var v=prompt("Renovar por quantos dias, a partir de hoje? (0 = vitalício)",String(x.days||30));if(v===null)return;var n=parseInt(v,10);if(isNaN(n)||n<0){toast("Número inválido.",1);return}if(await call("/admin/renew",{code:x.code,days:n})){toast("Renovado: "+x.code);reload()}});
     btn("Liberar aparelhos",async function(){if(await call("/admin/reset",{code:x.code})){toast("Liberado: "+x.code);reload()}});
     btn(x.revoked?"Desbloquear":"Bloquear",async function(){if(await call("/admin/revoke",{code:x.code,revoked:!x.revoked})){toast("Atualizado.");reload()}});
     box.appendChild(r);
