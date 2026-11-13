@@ -18,7 +18,7 @@ small{display:block;color:#bcaee0;margin-top:14px;font-size:13px}
 <small>O código vale para uma pessoa. Se você já usou em outro aparelho e não consegue entrar, fale com o suporte.</small>
 </main>
 <script>
-var API="https://haas-sensi-api.haaszinff.workers.dev";
+var API="";  /* cole aqui o endereço do seu servidor (termina em workers.dev), sem barra no final */
 function $(i){return document.getElementById(i)}
 function msg(t,ok){var m=$("m");m.textContent=t;m.className=ok?"ok":""}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
@@ -47,16 +47,17 @@ async function activate(code){
     r=await res.json();
   }catch(e){
     var k=ls("haas-key");
-    if(k&&ls("haas-code")){try{await openApp(k);return}catch(e2){}}
+    var ex=parseInt(ls("haas-exp")||"0",10);
+    if(k&&ls("haas-code")&&!(ex&&Date.now()>ex)){try{await openApp(k);return}catch(e2){}}
     msg("Sem conexão com o servidor. Conecte à internet e tente de novo.");return;
   }
   if(r&&r.ok){
-    ls("haas-code",code);ls("haas-key",r.key);
+    ls("haas-code",code);ls("haas-key",r.key);ls("haas-exp",r.exp?String(r.exp):null);
     try{await openApp(r.key)}catch(e){msg("Não foi possível abrir o app. Tente atualizar a página.")}
     return;
   }
-  ls("haas-key",null);ls("haas-code",null);
-  var T={invalid:"Código inválido. Confira e tente de novo.",used:"Este código já foi usado em outro aparelho. Fale com o suporte para liberar.",revoked:"Este código foi bloqueado. Fale com o suporte."};
+  ls("haas-key",null);ls("haas-code",null);ls("haas-exp",null);
+  var T={invalid:"Código inválido. Confira e tente de novo.",used:"Este código já foi usado em outro aparelho. Fale com o suporte para liberar.",revoked:"Este código foi bloqueado. Fale com o suporte.",expired:"O seu plano venceu. Fale com o suporte para renovar."};
   msg(T[r&&r.error]||"Não foi possível entrar agora. Tente de novo mais tarde.");
 }
 $("go").onclick=function(){var c=$("c").value.trim();if(!c){msg("Digite o seu código.");return}activate(c)};
